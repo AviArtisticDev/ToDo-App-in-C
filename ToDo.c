@@ -5,6 +5,8 @@
 #include<ctype.h>
 #include<stdlib.h>
 #include<unistd.h>
+#include<conio.h>
+#include<windows.h>
 
 int todosCount = 0; // For Count the ToDO
 FILE *fp;
@@ -62,13 +64,52 @@ void readFromFile()
     }
 }
 
+#define MAX_LEN 43
+
+void moveCursor(int x, int y) {
+    COORD pos = {x, y};
+    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
+}
+
 // Function to add New ToDo
 void addToDo()
 {
     // for todo title
-    char userInput[50];
-    printf("Type your ToDo\n>> ");
-    scanf("%[^\n]s", userInput);
+    char userInput[MAX_LEN + 1] = {0};
+    int i = 0;
+    char ch;
+
+    printf("Type your ToDo\n");
+    printf("> ");
+
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+    int inputX = csbi.dwCursorPosition.X;
+    int inputY = csbi.dwCursorPosition.Y;
+
+    while (1) {
+        ch = getch();
+
+        if (ch == 13){ // Enter key
+            break;
+        } else if (ch == 8){ // Backspace
+            if (i > 0){
+                i--;
+                userInput[i] = '\0';
+                printf("\b \b");
+            }
+        } else{
+            if (i < MAX_LEN){
+                userInput[i++] = ch;
+                putch(ch);
+            }
+        }
+        moveCursor(50, inputY); // Right side of input line
+        printf("[%2d/43]", i); // Shows [xx/40]
+        moveCursor(inputX + i, inputY); // Return cursor to typing position
+    }
+
+    userInput[i] = '\0';
     strncpy(todos[todosCount].title, userInput, sizeof(todos[0].title));
 
     // add time
@@ -96,15 +137,6 @@ void printAllToDo()
     
     for (int i = 0; i < todosCount; i++)
     {
-        if (todos[i].isCompleted)
-        {
-            printf("\033[10m");
-        }
-        else
-        {
-            printf("\033[1m");
-        }
-        
         printf("| %-3d  | %-43s | %-14s | %-8s |\n", i + 1, todos[i].title, todos[i].createdAt, (!todos[i].isCompleted) ? "No" : "Yes");
         printf("+------+---------------------------------------------+----------------+----------+\n"); 
     }
@@ -186,6 +218,7 @@ void isThisFirstTime()
     {
         readFromFile();
         printAllToDo();
+        getchar();
         ShowOptions();
     }
     else
@@ -203,6 +236,7 @@ int main()
     system("@cls");  // For Clear the Screen
     printf("\033[32;1m");
     isThisFirstTime();
+    return 0;
 }
 
 
