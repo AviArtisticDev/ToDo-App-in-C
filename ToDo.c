@@ -4,9 +4,10 @@
 #include<stdbool.h>
 #include<ctype.h>
 #include<stdlib.h>
-#include<unistd.h>
 #include<conio.h>
 #include<windows.h>
+
+#define MAX_TODOS 50 //to limit the number of Todo 
 
 int todosCount = 0; // For Count the ToDO
 FILE *fp;
@@ -15,13 +16,13 @@ FILE *fp;
 struct Todo {
     char title[50];
     char createdAt[50];
-    _Bool isCompleted;
-} todos[20];
+    bool isCompleted;
+} todos[MAX_TODOS];
 
 // Function to Save all ToDos in a File
 void saveToFile()
 {
-    fp = fopen("todos.bin", "w"); 
+    fp = fopen("todostrailerror.bin", "wb"); 
     if (!fp)
     {
         printf("Can't save your file\n");
@@ -40,7 +41,7 @@ void saveToFile()
 void getFileSize()
 {
     fseek(fp, 0L, SEEK_END);
-    unsigned int long size = ftell(fp);
+    unsigned long size = ftell(fp);
     fseek(fp, 0L, SEEK_SET);
     todosCount = size/sizeof(struct Todo);
 }
@@ -48,7 +49,7 @@ void getFileSize()
 // Function for read all ToDos from file
 void readFromFile()
 {
-    fp = fopen("todos.bin", "r");
+    fp = fopen("todostrailerror.bin", "rb");
     if (!fp)
     {
         printf("We are not able to find any todos file\n");
@@ -64,13 +65,13 @@ void readFromFile()
     }
 }
 
-#define MAX_LEN 43
-
+// function for move cursor
 void moveCursor(int x, int y) {
     COORD pos = {x, y};
     SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
 }
 
+#define MAX_LEN 43
 // Function to add New ToDo
 void addToDo()
 {
@@ -98,7 +99,7 @@ void addToDo()
                 userInput[i] = '\0';
                 printf("\b \b");
             }
-        } else{
+        } else if (ch >=32 && ch <= 126) { // printable character only
             if (i < MAX_LEN){
                 userInput[i++] = ch;
                 putch(ch);
@@ -110,7 +111,15 @@ void addToDo()
     }
 
     userInput[i] = '\0';
-    strncpy(todos[todosCount].title, userInput, sizeof(todos[0].title));
+    if (strlen(userInput) == 0 || strspn(userInput, " ") == strlen(userInput))
+    {
+        printf("Empty ToDo not added.\n");
+        return;
+    }
+    else
+    {
+        strncpy(todos[todosCount].title, userInput, sizeof(todos[0].title));
+    }
 
     // add time
     char todoTime[50];
@@ -131,7 +140,7 @@ void addToDo()
 // Function to Print all ToDos
 void printAllToDo()
 {
-    printf("__________________________________________________________________________________\n");
+    printf("\n__________________________________________________________________________________\n");
     printf("|  Id  |                    Title                    |   Created At   |  Status  |\n");
     printf("+------+---------------------------------------------+----------------+----------+\n");
     
@@ -145,51 +154,56 @@ void printAllToDo()
 // Function to Mark Complete Status
 void markAsComplete()
 {
+    char line[10];
     int todoId;
     printf("Enter the Id to mark todo\n>>");
-    scanf("%d", &todoId);
-    todoId--;
-    if (todoId < 0 || todoId > todosCount)
-    {
-        printf("Invalid todo id\n");
+    fgets(line, sizeof(line), stdin);
+    if (sscanf(line, "%d", &todoId) != 1 || todoId < 1 || todoId > todosCount) {
+        printf("Invalid todo Id\n");
+        return;
     }
-    else
-    {
-        todos[todoId].isCompleted = true;
-        printf("ToDo mark as Completed.");
-    }
+   
+    todos[todoId - 1].isCompleted = true;
+    printf("ToDo mark as Completed.\n");
 }
 
 // FUnction to Delete ToDos
 void deleteTodo()
 {
+    char line[10];
     int todoId;
     printf("Enter the Id to delete todo\n>>");
-    scanf("%d", &todoId);
-    if (todoId < 0 || todoId > todosCount)
-    {
-        printf("Invalid todo id\n");
+    fgets(line, sizeof(line), stdin);
+    if (sscanf(line, "%d", &todoId) != 1 || todoId < 1 || todoId > todosCount) {
+        printf("Invalid todo Id\n");
+        return;
     }
-    else
-    {
-        todoId--;
-        memmove(todos + todoId, todos + todoId + 1, (todosCount - todoId - 1) * sizeof(*todos)); 
-        todosCount--;
-        printf("your todo has been deleted.\n");
-    }   
+    todoId--;
+    memmove(todos + todoId, todos + todoId + 1, (todosCount - todoId - 1) * sizeof(*todos)); 
+    todosCount--;
+    printf("your todo has been deleted.\n"); 
 }
 
 // Function to Show Options
 void ShowOptions()
 {
-    char userChoice;
+    char line[10];
     printf("Type 'A' to ADD, 'D' to DELETE,'C' to MARK COMPLETE and 'Q' to Quit.\n>>");
-    userChoice = toupper(getchar());
-    getchar();
+    fgets(line, sizeof(line), stdin);
+    char userChoice = toupper(line[0]);
+    
     switch (userChoice)
     {
     case 'A':
-        addToDo();
+        if (todosCount >= MAX_TODOS)
+        {
+            printf("Maximum todo limit reached.");
+        }
+        else
+        {
+            addToDo();
+        }
+        
         break;
     case 'D':
         deleteTodo();
@@ -198,15 +212,14 @@ void ShowOptions()
         markAsComplete();
         break;
     case 'Q':
-        exit(0);
-        break;
+        return;
     default:
         printf("Command not found.\n");
         ShowOptions();
         break;
     }
     saveToFile();
-    system("@cls");
+    system("cls");
     printAllToDo();
     getchar();
     ShowOptions();
@@ -214,8 +227,9 @@ void ShowOptions()
 
 void isThisFirstTime()
 {
-    if (access("todos.bin", F_OK) != -1)
+    if ((fp = fopen("todostrailerror.bin", "rb")) != NULL)
     {
+        fclose(fp);
         readFromFile();
         printAllToDo();
         getchar();
@@ -233,7 +247,7 @@ void isThisFirstTime()
 
 int main()
 {
-    system("@cls");  // For Clear the Screen
+    system("cls");  // For Clear the Screen
     printf("\033[32;1m");
     isThisFirstTime();
     return 0;
