@@ -9,7 +9,7 @@
 
 #define MAX_TODOS 50 //to limit the number of Todo 
 
-int todosCount = 0; // For Count the ToDO
+int todosCount = 0; // For Count the ToDo
 FILE *fp;
 
 // Structure of ToDo
